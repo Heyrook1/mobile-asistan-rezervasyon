@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "Asistan",
+    "slug": "asistan-rezervasyon",
+    "scheme": "asistan",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.asistan.rezervasyon",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Yakınınızdaki klinikleri ve mesafeyi göstermek için konumunuza ihtiyacımız var.",
+        "UIBackgroundModes": ["remote-notification"]
+      }
+    },
+    "androidStatusBar": {
+      "barStyle": "dark-content"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.asistan.rezervasyon",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "@sentry/react-native",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#1BA8B5"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Yakınınızdaki klinikleri göstermek için konumunuza ihtiyacımız var."
+        }
+      ]
+    ]
+  }
+}

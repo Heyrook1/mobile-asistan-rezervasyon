@@ -1,0 +1,16 @@
+project_id = "bzluypnxoxliodzdhnmp"
+
+[api]
+enabled = true
+
+[functions.booking]
+verify_jwt = true
+
+[functions.catalog]
+verify_jwt = true
+
+[functions.engagement]
+verify_jwt = true
+
+[functions.reminders]
+verify_jwt = false

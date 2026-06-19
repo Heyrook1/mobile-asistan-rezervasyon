@@ -1,0 +1,18 @@
+appId: host.exp.Exponent
+---
+- assertVisible: "Hoş geldiniz"
+- tapOn:
+    text: "Ara"
+    optional: true
+- tapOn:
+    id: "search-bar"
+    optional: true
+- extendedWaitUntil:
+    visible: ".*"
+    timeout: 5000
+- tapOn:
+    text: "Randevular"
+    optional: true
+- assertVisible:
+    text: "Randevularım|Henüz randevunuz yok"
+    optional: true

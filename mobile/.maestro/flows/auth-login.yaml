@@ -1,0 +1,13 @@
+appId: host.exp.Exponent
+---
+- tapOn:
+    text: "E-posta adresiniz"
+- inputText: "${MAESTRO_TEST_EMAIL}"
+- tapOn:
+    text: "Şifreniz"
+- inputText: "${MAESTRO_TEST_PASSWORD}"
+- tapOn:
+    text: "Giriş Yap"
+- extendedWaitUntil:
+    visible: "Hoş geldiniz"
+    timeout: 20000

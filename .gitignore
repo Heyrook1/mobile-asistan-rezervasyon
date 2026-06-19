@@ -1,0 +1,25 @@
+node_modules
+.env
+.env.local
+.expo
+.rork
+web-test/env.js
+
+# Mobile / build artifacts
+mobile/node_modules
+mobile/dist
+mobile/coverage
+mobile/.expo
+
+# Netlify local cache
+.netlify
+
+# IDE / OS
+.cursor
+.DS_Store
+Thumbs.db
+
+# Test / logs
+*.log
+npm-debug.*
+

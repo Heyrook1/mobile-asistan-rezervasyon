@@ -1,0 +1,14 @@
+appId: host.exp.Exponent
+---
+- launchApp
+- assertVisible:
+    text: ".*"
+    optional: true
+- runFlow:
+    when:
+      visible: "Giriş Yap"
+    file: auth-login.yaml
+- runFlow:
+    when:
+      visible: "Hoş geldiniz"
+    file: booking-smoke.yaml

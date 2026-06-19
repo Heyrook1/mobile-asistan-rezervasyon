@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Asistan Web App</title>
+    <style>
+      :root {
+        color-scheme: dark only;
+        --bg: #0b1020;
+        --bg-soft: #141b2f;
+        --panel: #18233a;
+        --panel-2: #101a2c;
+        --line: #2f3f5d;
+        --text: #e9eefc;
+        --muted: #a9b4d0;
+        --primary: #6ea8ff;
+        --primary-2: #4f84f2;
+        --ok: #3ddc97;
+        --danger: #ff7b72;
+      }
+      body {
+        font-family: Inter, Segoe UI, Arial, sans-serif;
+        margin: 0;
+        min-height: 100vh;
+        padding: 24px 18px 32px;
+        background:
+          radial-gradient(1000px 600px at -10% -10%, #22396f66, transparent),
+          radial-gradient(900px 500px at 110% 0%, #27406a44, transparent),
+          var(--bg);
+        color: var(--text);
+      }
+      .app {
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .title {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: 0.2px;
+      }
+      .subtitle {
+        margin: 6px 0 0;
+        color: var(--muted);
+      }
+      .badge {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 12px;
+        color: var(--muted);
+        background: #0f172b;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .card {
+        background: linear-gradient(180deg, var(--panel), var(--panel-2));
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 8px 24px #00000033;
+      }
+      .card h2 {
+        margin: 0 0 12px;
+        font-size: 17px;
+      }
+      .card p {
+        margin: 0;
+      }
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      input {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: #0d1424;
+        color: var(--text);
+        box-sizing: border-box;
+      }
+      button {
+        padding: 10px 12px;
+        border: 1px solid #4a6391;
+        border-radius: 10px;
+        background: linear-gradient(180deg, var(--primary), var(--primary-2));
+        color: #f8fbff;
+        cursor: pointer;
+        transition: transform 120ms ease, opacity 120ms ease;
+      }
+      button + button {
+        margin-left: 8px;
+      }
+      button:hover {
+        transform: translateY(-1px);
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .ghost {
+        background: #13203a;
+      }
+      .btnrow {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .btnrow button {
+        margin-left: 0;
+      }
+      .mono {
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .wide {
+        grid-column: 1 / -1;
+      }
+      .status-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 8px;
+      }
+      pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: #0a121f;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        min-height: 220px;
+      }
+      .ok {
+        color: var(--ok);
+      }
+      .err {
+        color: var(--danger);
+      }
+      .helper {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      @media (max-width: 860px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        .topbar {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div>
+          <h1 class="title">Asistan Web App</h1>
+          <p class="subtitle">Modern browser test interface for Supabase auth and edge functions.</p>
+        </div>
+        <div id="statusBadge" class="badge">Status: waiting for config</div>
+      </header>
+
+      <div class="grid">
+      <section class="card">
+        <h2>Config</h2>
+        <label for="url">Supabase URL</label>
+        <input id="url" placeholder="https://YOUR_PROJECT.supabase.co" />
+
+        <label for="anon">Supabase Anon Key</label>
+        <input id="anon" placeholder="eyJ..." />
+
+        <div class="btnrow">
+          <button id="saveConfig">Save Config</button>
+        </div>
+        <div class="status-row">
+          <p id="configState" class="mono"></p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Auth</h2>
+        <label for="email">Email</label>
+        <input id="email" placeholder="test@example.com" />
+
+        <label for="password">Password</label>
+        <input id="password" type="password" placeholder="******" />
+
+        <div class="btnrow">
+          <button id="registerBtn">Register</button>
+          <button id="signInBtn">Sign In</button>
+          <button id="signOutBtn" class="ghost">Sign Out</button>
+        </div>
+        <p id="authState" class="mono"></p>
+      </section>
+
+      <section class="card">
+        <h2>Function Tests</h2>
+        <div class="btnrow">
+          <button id="profileBtn">Get Profile</button>
+          <button id="discoveryBtn">Discovery</button>
+          <button id="appointmentsBtn">Appointments</button>
+        </div>
+        <p class="helper">Calls `auth-client`, `catalog`, and `booking` edge functions.</p>
+      </section>
+
+      <section class="card wide">
+        <div class="status-row">
+          <h2>Output</h2>
+          <button id="clearOutput" class="ghost">Clear</button>
+        </div>
+        <pre id="output">Ready.</pre>
+      </section>
+      </div>
+    </main>
+
+    <script src="./env.js"></script>
+    <script type="module" src="./web-test.js"></script>
+  </body>
+</html>
