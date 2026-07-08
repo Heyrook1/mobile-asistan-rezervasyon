@@ -4,11 +4,14 @@ import CoreLocation
 struct ProfileView: View {
     @Environment(AuthManager.self) private var auth
     @Environment(ToastCenter.self) private var toast
+    @Environment(\.colorScheme) private var colorScheme
+    @AppStorage("preferredColorScheme") private var preferredScheme: AppTheme = .system
     @State private var showEdit = false
     @State private var showLocation = false
     @State private var showSignOut = false
 
     private var user: ClientUser? { auth.clientUser }
+    private var colors: Theme.Colors { Theme.Colors.forScheme(colorScheme) }
 
     var body: some View {
         NavigationStack {
@@ -17,13 +20,14 @@ struct ProfileView: View {
                     profileHeader
                     accountCard
                     locationCard
+                    preferencesCard
                     aboutCard
                     signOutButton
                     Color.clear.frame(height: 90)
                 }
                 .padding(.horizontal, 18).padding(.top, 8)
             }
-            .background(Theme.canvas.ignoresSafeArea())
+            .background(colors.canvas.ignoresSafeArea())
             .sheet(isPresented: $showEdit) {
                 EditProfileSheet { toast.show("Profiliniz güncellendi.", style: .success) }
             }
@@ -45,9 +49,9 @@ struct ProfileView: View {
                     .font(.system(size: 34, weight: .bold)).foregroundStyle(.white)
             }
             VStack(spacing: 3) {
-                Text(user?.fullName ?? "Kullanıcı").font(.system(size: 21, weight: .heavy)).foregroundStyle(Theme.ink)
+                Text(user?.fullName ?? "Kullanıcı").font(.system(size: 21, weight: .heavy)).foregroundStyle(colors.ink)
                 if let email = user?.email {
-                    Text(email).font(.system(size: 14)).foregroundStyle(Theme.inkSecondary)
+                    Text(email).font(.system(size: 14)).foregroundStyle(colors.inkSecondary)
                 }
             }
             Button { showEdit = true } label: {
@@ -79,16 +83,37 @@ struct ProfileView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(user?.city ?? "Konum seçilmedi")
-                            .font(.system(size: 15, weight: .bold)).foregroundStyle(Theme.ink)
+                            .font(.system(size: 15, weight: .bold)).foregroundStyle(colors.ink)
                         Text(user?.hasLocation == true ? "Yakındaki klinikler gösteriliyor" : "Şehir seçerek klinik bulun")
-                            .font(.system(size: 12.5)).foregroundStyle(Theme.inkSecondary)
+                            .font(.system(size: 12.5)).foregroundStyle(colors.inkSecondary)
                     }
                     Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.inkTertiary)
+                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold)).foregroundStyle(colors.inkTertiary)
                 }
             }
         }
         .buttonStyle(PressableStyle())
+    }
+
+    private var preferencesCard: some View {
+        card(title: "Tercihler", icon: "gear") {
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    Image(systemName: preferredScheme == .dark ? "moon.fill" : preferredScheme == .light ? "sun.max.fill" : "circle.lefthalf.filled")
+                        .font(.system(size: 14)).foregroundStyle(Theme.teal).frame(width: 22)
+                    Text("Tema").font(.system(size: 14)).foregroundStyle(colors.inkSecondary)
+                    Spacer()
+                    Picker("Tema", selection: $preferredScheme) {
+                        ForEach(AppTheme.allCases, id: \.self) { theme in
+                            Text(theme.displayName).tag(theme)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(Theme.teal)
+                }
+                .padding(.vertical, 12)
+            }
+        }
     }
 
     private var aboutCard: some View {
@@ -108,20 +133,20 @@ struct ProfileView: View {
             Label("Çıkış Yap", systemImage: "rectangle.portrait.and.arrow.right")
                 .font(.system(size: 16, weight: .bold)).foregroundStyle(Theme.danger)
                 .frame(maxWidth: .infinity).frame(height: 54)
-                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .background(colors.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.danger.opacity(0.3), lineWidth: 1))
         }
         .buttonStyle(PressableStyle())
     }
 
-    private var divider: some View { Divider().background(Theme.stroke).padding(.leading, 36) }
+    private var divider: some View { Divider().background(colors.stroke).padding(.leading, 36) }
 
     private func infoRow(icon: String, label: String, value: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon).font(.system(size: 14)).foregroundStyle(Theme.teal).frame(width: 22)
-            Text(label).font(.system(size: 14)).foregroundStyle(Theme.inkSecondary)
+            Text(label).font(.system(size: 14)).foregroundStyle(colors.inkSecondary)
             Spacer()
-            Text(value).font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
+            Text(value).font(.system(size: 14, weight: .semibold)).foregroundStyle(colors.ink).lineLimit(1)
         }
         .padding(.vertical, 12)
     }
@@ -129,9 +154,9 @@ struct ProfileView: View {
     private func linkRow(icon: String, label: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon).font(.system(size: 14)).foregroundStyle(Theme.teal).frame(width: 22)
-            Text(label).font(.system(size: 14, weight: .medium)).foregroundStyle(Theme.ink)
+            Text(label).font(.system(size: 14, weight: .medium)).foregroundStyle(colors.ink)
             Spacer()
-            Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.inkTertiary)
+            Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundStyle(colors.inkTertiary)
         }
         .padding(.vertical, 12)
     }
@@ -140,7 +165,7 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 7) {
                 Image(systemName: icon).font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.teal)
-                Text(title).font(.system(size: 14, weight: .heavy)).foregroundStyle(Theme.inkSecondary)
+                Text(title).font(.system(size: 14, weight: .heavy)).foregroundStyle(colors.inkSecondary)
             }
             content()
         }
@@ -165,7 +190,7 @@ struct EditProfileSheet: View {
                 Spacer()
             }
             .padding(20)
-            .background(Theme.canvas.ignoresSafeArea())
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("Profili Düzenle")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -270,7 +295,7 @@ struct EditLocationSheet: View {
                 }
             }
             .padding(20)
-            .background(Theme.canvas.ignoresSafeArea())
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("Konum")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

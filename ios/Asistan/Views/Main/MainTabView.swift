@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @Environment(AuthManager.self) private var auth
+    @Environment(\.colorScheme) private var colorScheme
     @State private var selected: Tab = .home
     @State private var notifModel = NotificationsModel()
 
@@ -27,6 +28,8 @@ struct MainTabView: View {
         }
     }
 
+    private var colors: Theme.Colors { Theme.Colors.forScheme(colorScheme) }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             Group {
@@ -50,18 +53,22 @@ struct MainTabView: View {
     private var tabBar: some View {
         HStack(spacing: 0) {
             ForEach(Tab.allCases, id: \.rawValue) { tab in
+                let isSelected = selected == tab
                 Button {
-                    if selected != tab {
-                        let gen = UIImpactFeedbackGenerator(style: .light)
-                        gen.impactOccurred()
+                    withAnimation(Theme.Motion.quick) {
+                        if selected != tab {
+                            Haptics.light()
+                        }
+                        selected = tab
                     }
-                    selected = tab
                 } label: {
                     VStack(spacing: 4) {
                         ZStack {
                             Image(systemName: tab.icon)
                                 .font(.system(size: 21, weight: .semibold))
-                                .foregroundStyle(selected == tab ? Theme.teal : Theme.inkTertiary)
+                                .foregroundStyle(isSelected ? Theme.teal : colors.inkTertiary)
+                                .scaleEffect(isSelected ? 1.08 : 1.0)
+                                .animation(Theme.Motion.press, value: isSelected)
                             if tab == .notifications && notifModel.unread > 0 {
                                 Text("\(min(notifModel.unread, 9))")
                                     .font(.system(size: 10, weight: .bold))
@@ -72,8 +79,8 @@ struct MainTabView: View {
                             }
                         }
                         Text(tab.title)
-                            .font(.system(size: 10, weight: selected == tab ? .bold : .medium))
-                            .foregroundStyle(selected == tab ? Theme.teal : Theme.inkTertiary)
+                            .font(.system(size: 10, weight: isSelected ? .bold : .medium))
+                            .foregroundStyle(isSelected ? Theme.teal : colors.inkTertiary)
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -84,9 +91,9 @@ struct MainTabView: View {
         .padding(.bottom, 26)
         .padding(.horizontal, 6)
         .background(
-            Theme.surface
+            colors.surface
                 .ignoresSafeArea(edges: .bottom)
-                .shadow(color: .black.opacity(0.06), radius: 12, y: -4)
+                .shadow(color: colors.shadow.opacity(0.08), radius: 16, y: -4)
         )
     }
 }

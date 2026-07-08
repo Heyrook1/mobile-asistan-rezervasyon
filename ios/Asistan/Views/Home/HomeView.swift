@@ -4,6 +4,8 @@ import SwiftUI
 @Observable
 final class HomeModel {
     var data: DiscoveryResponse?
+    var appointments: [AppointmentRow] = []
+    var unreadNotifications = 0
     var isLoading = false
     var errorMessage: String?
 
@@ -12,7 +14,12 @@ final class HomeModel {
         isLoading = data == nil
         errorMessage = nil
         do {
-            data = try await APIService.discovery(lat: lat, lng: lng)
+            async let discovery = APIService.discovery(lat: lat, lng: lng)
+            async let appts = APIService.myAppointments()
+            async let notifs = APIService.notifications()
+            data = try await discovery
+            appointments = try await appts
+            unreadNotifications = (try? await notifs)?.unread ?? 0
         } catch let error as APIError {
             errorMessage = error.message
         } catch {
@@ -20,14 +27,26 @@ final class HomeModel {
         }
         isLoading = false
     }
+
+    var nextUpcoming: AppointmentRow? {
+        let today = Format.todayIso
+        return appointments
+            .filter { !["CANCELLED", "COMPLETED", "NO_SHOW"].contains($0.status) && $0.date >= today }
+            .sorted { ($0.date, $0.startTime) < ($1.date, $1.startTime) }
+            .first
+    }
 }
 
 struct HomeView: View {
     @Environment(AuthManager.self) private var auth
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var selectedTab: MainTabView.Tab
     @State private var model = HomeModel()
     @State private var route: ProviderRoute?
+    @State private var showAI = false
+    @State private var appear = false
 
+    private var colors: Theme.Colors { Theme.Colors.forScheme(colorScheme) }
     private var firstName: String {
         (auth.clientUser?.fullName ?? "").split(separator: " ").first.map(String.init) ?? "Hoş geldiniz"
     }
@@ -35,75 +54,66 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 22) {
-                    header
-                    if model.isLoading {
-                        loadingState
-                    } else if let data = model.data {
-                        content(data)
-                    } else if model.errorMessage != nil {
-                        EmptyStateView(icon: "wifi.slash", title: "Bir şeyler ters gitti", message: model.errorMessage ?? "")
+            ZStack(alignment: .bottomTrailing) {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: Theme.Space.xl) {
+                        PremiumGreetingHeader(
+                            firstName: firstName,
+                            city: auth.clientUser?.city,
+                            unread: model.unreadNotifications,
+                            onBell: { selectedTab = .notifications },
+                            onProfile: { selectedTab = .profile }
+                        )
+
+                        PremiumSearchBar { selectedTab = .search }
+
+                        if model.isLoading {
+                            loadingState
+                        } else if let data = model.data {
+                            content(data)
+                        } else if model.errorMessage != nil {
+                            EmptyStateView(
+                                icon: "wifi.slash",
+                                title: "Bir şeyler ters gitti",
+                                message: model.errorMessage ?? ""
+                            )
+                            .asistanCard()
+                        }
+                        Color.clear.frame(height: 120)
                     }
-                    Color.clear.frame(height: 90)
+                    .padding(.horizontal, Theme.Space.lg)
+                    .padding(.top, Theme.Space.sm)
                 }
-                .padding(.horizontal, 18)
-                .padding(.top, 8)
+                .background(colors.canvas.ignoresSafeArea())
+                .navigationDestination(item: $route) { r in
+                    destination(for: r)
+                }
+                .refreshable { await model.load(lat: coord?.lat, lng: coord?.lng, force: true) }
+
+                VStack(spacing: 12) {
+                    EmergencyShortcutButton { callEmergency() }
+                    FloatingAIButton { showAI = true }
+                }
+                .padding(.trailing, Theme.Space.lg)
+                .padding(.bottom, Theme.Space.xxl)
+                .offset(y: appear ? 0 : 100)
+                .animation(Theme.Motion.entrance.delay(0.4), value: appear)
             }
-            .background(Theme.canvas.ignoresSafeArea())
-            .navigationDestination(item: $route) { r in
-                destination(for: r)
-            }
-            .refreshable { await model.load(lat: coord?.lat, lng: coord?.lng, force: true) }
         }
-        .task { await model.load(lat: coord?.lat, lng: coord?.lng) }
-    }
-
-    private var header: some View {
-        VStack(spacing: 16) {
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Merhaba, \(firstName) 👋")
-                        .font(.system(size: 22, weight: .heavy))
-                        .foregroundStyle(Theme.ink)
-                    HStack(spacing: 4) {
-                        Image(systemName: "location.fill").font(.system(size: 11))
-                        Text(auth.clientUser?.city ?? "Konum seçilmedi")
-                            .font(.system(size: 13, weight: .medium))
-                    }
-                    .foregroundStyle(Theme.inkSecondary)
-                }
-                Spacer()
-                ZStack {
-                    Circle().fill(Theme.brandGradient).frame(width: 46, height: 46)
-                    Text(firstName.prefix(1).uppercased())
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white)
-                }
-            }
-
-            Button {
-                selectedTab = .search
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(Theme.inkTertiary)
-                    Text("Doktor, klinik veya hizmet ara")
-                        .font(.system(size: 15))
-                        .foregroundStyle(Theme.inkTertiary)
-                    Spacer()
-                }
-                .padding(.horizontal, 16)
-                .frame(height: 52)
-                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.stroke, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
+        .task {
+            await model.load(lat: coord?.lat, lng: coord?.lng)
+            withAnimation(Theme.Motion.smooth) { appear = true }
+        }
+        .sheet(isPresented: $showAI) {
+            AIAssistantSheet()
         }
     }
 
     private var loadingState: some View {
-        VStack(spacing: 14) {
-            ForEach(0..<3, id: \.self) { _ in SkeletonCard(height: 150) }
+        VStack(spacing: Theme.Space.lg) {
+            SkeletonCard(height: 180)
+            SkeletonCard(height: 150)
+            SkeletonCard(height: 150)
         }
     }
 
@@ -117,99 +127,102 @@ struct HomeView: View {
             )
             .asistanCard()
         } else {
+            if let upcoming = model.nextUpcoming {
+                SectionHeader(title: "Yaklaşan Randevu", action: "Tümü", onAction: { selectedTab = .appointments }) {
+                    UpcomingAppointmentWidget(
+                        appointment: upcoming,
+                        onView: { selectedTab = .appointments },
+                        onReschedule: { selectedTab = .appointments }
+                    )
+                }
+            }
+
+            HeroBanner(firstName: firstName) { selectedTab = .search }
+
+            SectionHeader(title: "Kategoriler", action: "Tümü", onAction: { selectedTab = .search }) {
+                CategoryGrid(categories: HealthCategory.default) { category in
+                    // Route to search with query intent.
+                    selectedTab = .search
+                }
+            }
+
             if !data.availableToday.isEmpty {
-                section(title: "Bugün müsait", systemImage: "bolt.fill", tint: Theme.success) {
+                SectionHeader(title: "Bugün Müsait", action: "Tümü", onAction: { selectedTab = .search }) {
                     horizontalProviders(data.availableToday)
                 }
             }
 
             if !data.popularServices.isEmpty {
-                section(title: "Popüler hizmetler", systemImage: "sparkles", tint: Theme.blue) {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            ForEach(data.popularServices) { svc in
-                                serviceChip(svc)
-                            }
-                        }
-                        .padding(.horizontal, 2)
-                    }
+                SectionHeader(title: "Popüler Hizmetler", action: "Tümü", onAction: { selectedTab = .search }) {
+                    horizontalServiceChips(data.popularServices)
                 }
             }
 
             if !data.topRated.isEmpty {
-                section(title: "En yüksek puanlı", systemImage: "star.fill", tint: Theme.warning) {
+                SectionHeader(title: "Önerilen Doktorlar", action: "Tümü", onAction: { selectedTab = .search }) {
                     horizontalProviders(data.topRated)
                 }
             }
 
-            section(title: "Yakınındaki klinikler", systemImage: "mappin.and.ellipse", tint: Theme.teal) {
-                VStack(spacing: 14) {
-                    ForEach(data.nearby) { provider in
+            SectionHeader(title: "Yakınındaki Klinikler", action: "Tümü", onAction: { selectedTab = .search }) {
+                VStack(spacing: Theme.Space.lg) {
+                    ForEach(data.nearby.prefix(6)) { provider in
                         Button { route = .doctor(provider.staffId) } label: {
                             ProviderCard(provider: provider)
                         }
-                        .buttonStyle(PressableStyle())
+                        .buttonStyle(PremiumPressableStyle())
                     }
                 }
             }
+
+            PromoBanner { selectedTab = .search }
+
+            TrustBadgesRow()
         }
     }
 
     private func horizontalProviders(_ providers: [Provider]) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 14) {
+            HStack(spacing: Theme.Space.lg) {
                 ForEach(providers) { provider in
                     Button { route = .doctor(provider.staffId) } label: {
                         CompactProviderCard(provider: provider)
                     }
-                    .buttonStyle(PressableStyle())
+                    .buttonStyle(PremiumPressableStyle())
                 }
             }
             .padding(.horizontal, 2)
         }
     }
 
-    private func serviceChip(_ svc: PopularService) -> some View {
-        Button {
-            selectedTab = .search
-        } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                Image(systemName: "heart.text.square.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(Theme.blue)
-                Text(svc.name)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Theme.ink)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                Text("\(svc.count) uzman")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Theme.inkTertiary)
+    private func horizontalServiceChips(_ services: [PopularService]) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Theme.Space.md) {
+                ForEach(services) { svc in
+                    Button { selectedTab = .search } label: {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Image(systemName: "heart.text.square.fill")
+                                .font(.system(size: 22))
+                                .foregroundStyle(Theme.blue)
+                            Text(svc.name)
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(colors.ink)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                            Text("\(svc.count) uzman")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(colors.inkTertiary)
+                        }
+                        .frame(width: 150, height: 110, alignment: .topLeading)
+                        .padding(14)
+                        .background(colors.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 18).stroke(colors.stroke, lineWidth: 1))
+                    }
+                    .buttonStyle(PremiumPressableStyle())
+                }
             }
-            .frame(width: 140, height: 110, alignment: .topLeading)
-            .padding(14)
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Theme.stroke, lineWidth: 1))
+            .padding(.horizontal, 2)
         }
-        .buttonStyle(PressableStyle())
-    }
-
-    private func section<Content: View>(
-        title: String, systemImage: String, tint: Color,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 7) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(tint)
-                Text(title)
-                    .font(.system(size: 18, weight: .heavy))
-                    .foregroundStyle(Theme.ink)
-            }
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -219,6 +232,11 @@ struct HomeView: View {
         case .clinic(let id): ClinicProfileView(businessId: id)
         }
     }
+
+    private func callEmergency() {
+        guard let url = URL(string: "tel://112") else { return }
+        UIApplication.shared.open(url)
+    }
 }
 
 enum ProviderRoute: Hashable {
@@ -227,7 +245,9 @@ enum ProviderRoute: Hashable {
 }
 
 struct CompactProviderCard: View {
+    @Environment(\.colorScheme) private var colorScheme
     let provider: Provider
+    private var colors: Theme.Colors { Theme.Colors.forScheme(colorScheme) }
     private var tint: Color { Color(hex: provider.primaryColor) }
 
     var body: some View {
@@ -240,7 +260,7 @@ struct CompactProviderCard: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(provider.doctorName)
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(Theme.ink)
+                    .foregroundStyle(colors.ink)
                     .lineLimit(1)
                 Text(provider.specialty ?? provider.clinicName)
                     .font(.system(size: 12, weight: .medium))
@@ -259,7 +279,7 @@ struct CompactProviderCard: View {
             } else {
                 Text("Müsaitlik yakında")
                     .font(.system(size: 11.5, weight: .medium))
-                    .foregroundStyle(Theme.inkTertiary)
+                    .foregroundStyle(colors.inkTertiary)
             }
         }
         .frame(width: 200, alignment: .leading)
