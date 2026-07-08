@@ -15,6 +15,11 @@
       "name": "Asistan Rezervasyon Android",
       "path": "android",
       "framework": "kotlin"
+    },
+    {
+      "name": "Asistan Web",
+      "path": "web",
+      "framework": "web"
     }
   ]
 }
